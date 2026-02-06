@@ -1,0 +1,123 @@
+# 題目
+ZeroJudge M933(2024/6 APCS第三題):
+設計一個程式，模擬一個基本的邏輯電路系統。這個電路系統由數個輸入端口、邏輯閘和輸出端口組成，您需要模擬電路中的訊號傳遞與閘的運算求出所有輸出端口的數值，並計算整個電路的最大延遲時間。
+電路包含以下元件:
+輸入端口(Input Ports):您將接收幾個二進制訊號,每個訊號的值為0或1。這些訊號將用作電路的輸入。電路內共有個輸入端口,編號為1到p
+邏輯閘(Logic Gates):有四種類型的邏輯閘,分別為AND、OR、XOR 和NOT閘。這些閘接收輸入訊號,並根據其功能進行運算。電路內共有9個邏輯閘,編號為
+p+1到p+q。各種邏輯閘的運算規則如下:
+AND 閘(AND gate):接收兩個輸入,如果兩個輸入皆為1,則輸出為1;否則輸出為0
+OR閘(OR gate):接收兩個輸入,如果至少有一個輸入為1,則輸出為1;如果兩個輸入皆為0,則輸出為0
+XOR閘(XOR gate):接收兩個輸入,如果兩個輸入不相同,則輸出為1;如果兩個輸入相同,則輸出為0
+NOT閘(NOT gate):僅接收一個輸入,並將其反轉。如果輸入為1,則輸出為0;如果輸入為0,則輸出為1
+輸出端口(Output Ports): 最終結果將會從這些端口輸出,每個端口對應著某些閘的輸出值。電路內共有個輸出端口,編號為p+q+1到p+q+r
+模擬這個電路系統,確定每個閘的輸出值,以及計算整個電路的最大延遲時間,最大延遲時間即訊號從輸入端口傳遞到輸出端口可能經過最多邏輯閘的數量
+題目連結 : https://zerojudge.tw/ShowProblem?problemid=m933
+
+## 題目類型
+- DFS/BFS/topological
+
+## 解題時我的第一個想法
+- 看到「樹 + 計算每個節點的值」，直覺用 DFS/BFS
+- 為了取得一個節點的值 需要先獲得與指向此節點的節點的值 符合topo的定義
+
+## 解題流程
+1. 讀入測資 建立陣列
+  - adj 儲存樹狀結構
+  - values 代表每個節點的值
+  - indegree topo會用到
+  - parent 代表要得知某個節點的值前, 需要先獲得哪些節點的值
+2. 用 BFS 遍歷每個節點
+3. 根據題目邏輯規則計算答案
+4. 最後輸出題目要求的答案:
+  1.最大延遲
+  2.輸出端口的值
+
+## 解題時遇到的問題
+- 由於輸出端口不是邏輯閘, 在進行BFS取得輸出端口值的時候會出現錯誤
+  -原因:把輸出端口當成邏輯閘來取值
+  
+## 改進方式
+-解決方法:取得邏輯閘結果的程式加上if(cur > p && cur <= p+q), 並且對輸出端口做額外處理
+
+## 學到的事
+-在做BFS/topo走訪時, 要確認每個操作的前提和需求, 避免導致程式運行錯誤
+-邏輯閘延遲計算時，要追蹤父節點最大延遲，才能正確求出最大延遲
+
+##程式碼
+
+#include<bits/stdc++.h>
+using namespace std;
+int main()
+{
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+    int p, q, r, m, mxlag = 0;
+    cin >> p >> q >> r >> m;                //讀入基本變數
+    vector<vector<int>> adj(p+q+r+1);   
+    vector<int> values(p+q+r+1, -1);
+    vector<int> indegree(p+q+r+1, 0);
+    vector<int> gate(p+q+1, 0);
+    vector<vector<int>> parent(p+q+r+1);
+    vector<int> lag(p+q+r+1, 0);
+    queue<int> Q;                           //建立陣列
+    for (int i=1; i<=p ;i++)
+    {
+        cin >> values[i];                   //讀入初始值
+        Q.push(i);                          //BFS的起始點
+    }
+    for (int i= p+1; i<=p+q; i++) cin >> gate[i];
+    while(m--)
+    {
+        int x, y;
+        cin >> x >> y;
+        adj[x].push_back(y);
+        parent[y].push_back(x);             //建立樹狀結構
+        indegree[y]++;                      //topo會用到的indegree
+    }
+    while (!Q.empty())                      //BFS
+    {
+        int cur = Q.front();
+        Q.pop();
+        if (cur > p && cur <= p+q)          //如果正在遍歷的節點是邏輯閘, 則取得邏輯閘的計算結果
+        {
+            if (gate[cur]==1) values[cur] = (values[parent[cur][0]] && values[parent[cur][1]]);
+            else if (gate[cur]==2) values[cur] = (values[parent[cur][0]] || values[parent[cur][1]]);
+            else if (gate[cur]==3) values[cur] = (values[parent[cur][0]] != values[parent[cur][1]]);
+            else values[cur] = !values[parent[cur][0]];
+            int max_parent_lag = 0;
+            for (int parent_:parent[cur]) max_parent_lag = max(max_parent_lag, lag[parent_]);
+            lag[cur] = max_parent_lag+1;
+            mxlag = max(mxlag, lag[cur]);   //計算最大延遲
+        }
+        else if (cur > p+q)                 //如果正在遍歷的節點是輸出端口, 直接取值
+        {   
+            values[cur] = values[parent[cur][0]];
+        }
+            for (int u:adj[cur])            //遍歷此節點的子節點
+        {
+            indegree[u]--;
+            if (indegree[u]==0) Q.push(u);  //indegree為0代表已經滿足取得此節點的前置條件, 加入queue
+        }
+    }
+    cout << mxlag << "\n";
+    for (int i=p+q+1; i<=p+q+r; i++) cout << values[i] << ' ';  //輸出結果
+}
+
+##運行測試
+  -輸入                           -輸出
+  4 5 4 13                        2
+  1 0 1 0                         0 1 1 1
+  1 2 3 4 1
+  1 5
+  2 5
+  2 6
+  3 6
+  3 7
+  4 7
+  4 8
+  5 10
+  6 9
+  6 11
+  7 9
+  8 13
+  9 12
